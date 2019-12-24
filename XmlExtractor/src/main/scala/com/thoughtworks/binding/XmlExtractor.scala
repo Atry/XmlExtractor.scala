@@ -24,17 +24,13 @@ SOFTWARE.
 
 package com.thoughtworks.binding
 
-import macrocompat.bundle
-
 import scala.reflect.macros.blackbox
-import com.thoughtworks.Extractor._
 import com.thoughtworks.binding.XmlExtractor._
 import org.apache.commons.lang3.text.translate.EntityArrays._
 
 /**
   * @author 杨博 (Yang Bo) &lt;pop.atry@gmail.com&gt;
   */
-@bundle
 trait XmlExtractor {
   val c: blackbox.Context
 
@@ -54,7 +50,7 @@ trait XmlExtractor {
       }
   }
 
-  protected final val NodeBuffer = nodeBuffer.extract
+  protected final val NodeBuffer = nodeBuffer
 
   private def nodeBufferStar(child: List[Tree]): List[Tree] = {
     child match {
@@ -70,51 +66,9 @@ trait XmlExtractor {
     case Literal(Constant(p: String)) => Some(p)
   }
 
-  private val Prefix = prefix.extract
+  private val Prefix = prefix
 
-  private def elem: PartialFunction[Tree, (QName, List[(QName, Tree)], Boolean, List[Tree])] = {
-    case Block(Nil,
-               q"""
-                 {
-                   var $$md: _root_.scala.xml.MetaData = _root_.scala.xml.Null;
-                   ..$attributes
-                   new _root_.scala.xml.Elem(
-                     ${Prefix(prefixOption)},
-                     ${Literal(Constant(localPart: String))},
-                     $$md, $$scope,
-                     ${Literal(Constant(minimizeEmpty: Boolean))},
-                     ..$child
-                   )
-                 }
-               """) =>
-      (QName(prefixOption, localPart), attributes.view.reverse.map {
-        case q"""$$md = new _root_.scala.xml.UnprefixedAttribute(${Literal(Constant(key: String))}, $value, $$md)""" =>
-          UnprefixedName(key) -> value
-        case q"""$$md = new _root_.scala.xml.PrefixedAttribute(${Literal(Constant(pre: String))}, ${Literal(
-              Constant(key: String))}, $value, $$md)""" =>
-          PrefixedName(pre, key) -> value
-      }.toList, minimizeEmpty, nodeBufferStar(child))
-    case Block(Nil,
-               Block(
-                 Nil,
-                 q"""
-                   new _root_.scala.xml.Elem(
-                     ${Prefix(prefixOption)},
-                     ${Literal(Constant(localPart: String))},
-                     _root_.scala.xml.Null,
-                     $$scope,
-                     ${Literal(Constant(minimizeEmpty: Boolean))},
-                     ..$child
-                   )
-                 """
-               )) =>
-      (QName(prefixOption, localPart), Nil, minimizeEmpty, nodeBufferStar(child))
-  }
-
-  @deprecated("This [[Elem]] extractor does not support xmlns. Use [[Element]] instead.", "11.9.0")
-  protected final val Elem = elem.extract
-
-  private def elemWithMetaData: PartialFunction[List[Tree], (QName, List[(QName, Tree)], Boolean, List[Tree])] = {
+  private def elem: PartialFunction[List[Tree], (QName, List[(QName, Tree)], Boolean, List[Tree])] = {
     case q"var $$md: _root_.scala.xml.MetaData = _root_.scala.xml.Null" +:
           (attributes :+
           q"""
@@ -148,7 +102,7 @@ trait XmlExtractor {
       (QName(prefixOption, localPart), Nil, minimizeEmpty, nodeBufferStar(child))
   }
 
-  private val ElemWithMetaData = elemWithMetaData.extract
+  private val Elem = elem
 
   private def element
     : PartialFunction[Tree,
@@ -158,7 +112,7 @@ trait XmlExtractor {
         ..$xmlnses;
         {
           val $$scope: _root_.scala.xml.NamespaceBinding = $$tmpscope;
-          ..${ElemWithMetaData(tagName, attributes, minimizeEmpty, children)}
+          ..${Elem(tagName, attributes, minimizeEmpty, children)}
         }
       }""" =>
       val namespaceBindings = xmlnses.map {
@@ -172,11 +126,11 @@ trait XmlExtractor {
           prefixOption -> uri
       }
       (tagName, namespaceBindings, attributes, minimizeEmpty, children)
-    case Block(Nil, q"{..${ElemWithMetaData(tagName, attributes, minimizeEmpty, children)}}") =>
+    case Block(Nil, q"{..${Elem(tagName, attributes, minimizeEmpty, children)}}") =>
       (tagName, Nil, attributes, minimizeEmpty, children)
   }
 
-  protected val Element = element.extract
+  protected val Element = element
 
   private def textUris: PartialFunction[Tree, Seq[Tree]] = {
     case text @ (Text(_) | EntityRef(_))                     => Seq(text)
@@ -185,21 +139,21 @@ trait XmlExtractor {
     case Literal(Constant(data: String))                     => Seq(q"new _root_.scala.xml.Text($data)")
   }
 
-  protected final val TextUris = textUris.extract
+  protected final val TextUris = textUris
 
   private def entityRef: PartialFunction[Tree, String] = {
     case q"""new _root_.scala.xml.EntityRef(${Literal(Constant(entityName: String))})""" =>
       entityName
   }
 
-  protected final val EntityRef = entityRef.extract
+  protected final val EntityRef = entityRef
 
   private def text: PartialFunction[Tree, String] = {
     case q"""new _root_.scala.xml.Text(${Literal(Constant(data: String))})""" =>
       data
   }
 
-  protected final val Text = text.extract
+  protected final val Text = text
 
   private def textAttribute: PartialFunction[Tree, String] = {
     case Text(data)       => data
@@ -207,7 +161,7 @@ trait XmlExtractor {
   }
 
   @deprecated("Use [[TextAttributes]] instead", "11.9.0")
-  protected final val TextAttribute = textAttribute.extract
+  protected final val TextAttribute = textAttribute
 
   private def textAttributes: PartialFunction[Tree, Seq[Tree]] = {
     case text @ (Text(_) | EntityRef(_))                     => Seq(text)
@@ -215,14 +169,14 @@ trait XmlExtractor {
     case NodeBuffer(texts @ ((Text(_) | EntityRef(_)) +: _)) => texts
   }
 
-  protected final val TextAttributes = textAttributes.extract
+  protected final val TextAttributes = textAttributes
 
   private def comment: PartialFunction[Tree, String] = {
     case q"""new _root_.scala.xml.Comment(${Literal(Constant(commentText: String))})""" =>
       commentText
   }
 
-  protected final val Comment = comment.extract
+  protected final val Comment = comment
 
   private def procInstr: PartialFunction[Tree, (String, String)] = {
     case q"""
@@ -234,7 +188,7 @@ trait XmlExtractor {
       (target, proctext)
   }
 
-  protected final val ProcInstr = procInstr.extract
+  protected final val ProcInstr = procInstr
 
   private def pcData: PartialFunction[Tree, String] = {
     case q"""
@@ -245,11 +199,11 @@ trait XmlExtractor {
       data
   }
 
-  protected final val PCData = pcData.extract
+  protected final val PCData = pcData
 
-  protected final val HtmlEntityName = XmlExtractor.HtmlEntityRefMap.extract
+  protected final val HtmlEntityName = XmlExtractor.HtmlEntityRefMap
 
-  protected final val XmlEntityName = XmlExtractor.XmlEntityRefMap.extract
+  protected final val XmlEntityName = XmlExtractor.XmlEntityRefMap
 
   protected object EmptyAttribute {
     def unapply(tree: Tree) = {
