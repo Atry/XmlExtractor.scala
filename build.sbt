@@ -1,11 +1,9 @@
-parallelExecution in Global := false
+libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value
 
-lazy val XmlExtractor = crossProject.crossType(CrossType.Pure)
+libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided
 
-lazy val XmlExtractorJS = XmlExtractor.js
+libraryDependencies += "org.apache.commons" % "commons-lang3" % "3.9"
 
-lazy val XmlExtractorJVM = XmlExtractor.jvm
+name := "XmlExtractor"
 
 organization in ThisBuild := "com.thoughtworks.binding"
-
-publish / skip := true
