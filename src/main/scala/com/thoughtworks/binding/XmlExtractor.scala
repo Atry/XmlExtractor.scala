@@ -129,7 +129,9 @@ trait XmlExtractor {
           prefixOption -> uri
       }
       (tagName, namespaceBindings, attributes, minimizeEmpty, children)
-    case Block(Nil, q"{..${Elem(tagName, attributes, minimizeEmpty, children)}}") =>
+    case q"{{..${Elem(tagName, attributes, minimizeEmpty, children)}}}" =>
+      (tagName, Nil, attributes, minimizeEmpty, children)
+    case q"{..${Elem(tagName, attributes, minimizeEmpty, children)}}" =>
       (tagName, Nil, attributes, minimizeEmpty, children)
     case this.elementWithoutAttributes(tagName, attributes, minimizeEmpty, children) =>
       (tagName, Nil, attributes, minimizeEmpty, children)
