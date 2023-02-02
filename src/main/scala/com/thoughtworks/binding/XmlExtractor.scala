@@ -82,8 +82,6 @@ trait XmlExtractor {
       (QName(prefixOption, localPart), Nil, minimizeEmpty, nodeBufferStar(child))
   }
 
-  val ElementWithoutAttributes = elementWithoutAttributes
-
   private def elem: PartialFunction[List[Tree], (QName, List[(QName, Tree)], Boolean, List[Tree])] = {
     case q"var $$md: _root_.scala.xml.MetaData = _root_.scala.xml.Null" +:
           (attributes :+
@@ -103,7 +101,7 @@ trait XmlExtractor {
               Constant(key: String))}, $value, $$md)""" =>
           PrefixedName(pre, key) -> value
       }, minimizeEmpty, nodeBufferStar(child))
-    case Seq(ElementWithoutAttributes(tagName, attributes, minimizeEmpty, children)) =>
+    case Seq(this.elementWithoutAttributes(tagName, attributes, minimizeEmpty, children)) =>
       (tagName, attributes, minimizeEmpty, children)
   }
 
@@ -133,7 +131,7 @@ trait XmlExtractor {
       (tagName, namespaceBindings, attributes, minimizeEmpty, children)
     case Block(Nil, q"{..${Elem(tagName, attributes, minimizeEmpty, children)}}") =>
       (tagName, Nil, attributes, minimizeEmpty, children)
-    case ElementWithoutAttributes(tagName, attributes, minimizeEmpty, children) =>
+    case this.elementWithoutAttributes(tagName, attributes, minimizeEmpty, children) =>
       (tagName, Nil, attributes, minimizeEmpty, children)
   }
 
