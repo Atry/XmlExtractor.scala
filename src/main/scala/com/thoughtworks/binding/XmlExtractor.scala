@@ -68,6 +68,22 @@ trait XmlExtractor {
 
   private val Prefix = prefix
 
+  private def elementWithoutAttributes: PartialFunction[Tree, (QName, List[(QName, Tree)], Boolean, List[Tree])] = {
+    case q"""
+            new _root_.scala.xml.Elem(
+              ${Prefix(prefixOption)},
+              ${Literal(Constant(localPart: String))},
+              _root_.scala.xml.Null,
+              $$scope,
+              ${Literal(Constant(minimizeEmpty: Boolean))},
+              ..$child
+            )
+          """ =>
+      (QName(prefixOption, localPart), Nil, minimizeEmpty, nodeBufferStar(child))
+  }
+
+  val ElementWithoutAttributes = elementWithoutAttributes
+
   private def elem: PartialFunction[List[Tree], (QName, List[(QName, Tree)], Boolean, List[Tree])] = {
     case q"var $$md: _root_.scala.xml.MetaData = _root_.scala.xml.Null" +:
           (attributes :+
@@ -87,19 +103,8 @@ trait XmlExtractor {
               Constant(key: String))}, $value, $$md)""" =>
           PrefixedName(pre, key) -> value
       }, minimizeEmpty, nodeBufferStar(child))
-    case Seq(
-        q"""
-            new _root_.scala.xml.Elem(
-              ${Prefix(prefixOption)},
-              ${Literal(Constant(localPart: String))},
-              _root_.scala.xml.Null,
-              $$scope,
-              ${Literal(Constant(minimizeEmpty: Boolean))},
-              ..$child
-            )
-          """
-        ) =>
-      (QName(prefixOption, localPart), Nil, minimizeEmpty, nodeBufferStar(child))
+    case Seq(ElementWithoutAttributes(tagName, attributes, minimizeEmpty, children)) =>
+      (tagName, attributes, minimizeEmpty, children)
   }
 
   private val Elem = elem
@@ -127,6 +132,8 @@ trait XmlExtractor {
       }
       (tagName, namespaceBindings, attributes, minimizeEmpty, children)
     case Block(Nil, q"{..${Elem(tagName, attributes, minimizeEmpty, children)}}") =>
+      (tagName, Nil, attributes, minimizeEmpty, children)
+    case ElementWithoutAttributes(tagName, attributes, minimizeEmpty, children) =>
       (tagName, Nil, attributes, minimizeEmpty, children)
   }
 
