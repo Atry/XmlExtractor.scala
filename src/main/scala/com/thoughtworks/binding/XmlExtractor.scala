@@ -28,26 +28,25 @@ import scala.reflect.macros.blackbox
 import com.thoughtworks.binding.XmlExtractor._
 import org.apache.commons.lang3.text.translate.EntityArrays._
 
-/**
-  * @author 杨博 (Yang Bo) &lt;pop.atry@gmail.com&gt;
+/** @author
+  *   杨博 (Yang Bo) &lt;pop.atry@gmail.com&gt;
   */
 trait XmlExtractor {
   val c: blackbox.Context
 
   import c.universe._
 
-  private def nodeBuffer: PartialFunction[Tree, List[Tree]] = {
-    case q"""{
+  private def nodeBuffer: PartialFunction[Tree, List[Tree]] = { case q"""{
       val $$buf = new _root_.scala.xml.NodeBuffer()
       ..$pushChildrenTree
       $$buf
     }""" =>
-      for {
-        pushChild <- pushChildrenTree
-      } yield {
-        val q"$$buf.$$amp$$plus($child)" = pushChild
-        child
-      }
+    for {
+      pushChild <- pushChildrenTree
+    } yield {
+      val q"$$buf.$$amp$$plus($child)" = pushChild
+      child
+    }
   }
 
   protected final val NodeBuffer = nodeBuffer
@@ -68,8 +67,10 @@ trait XmlExtractor {
 
   private val Prefix = prefix
 
-  private def elementWithoutAttributes: PartialFunction[Tree, (QName, List[(QName, Tree)], Boolean, List[Tree])] = {
-    case q"""
+  private def elementWithoutAttributes: PartialFunction[
+    Tree,
+    (QName, List[(QName, Tree)], Boolean, List[Tree])
+  ] = { case q"""
             new _root_.scala.xml.Elem(
               ${Prefix(prefixOption)},
               ${Literal(Constant(localPart: String))},
@@ -79,13 +80,15 @@ trait XmlExtractor {
               ..$child
             )
           """ =>
-      (QName(prefixOption, localPart), Nil, minimizeEmpty, nodeBufferStar(child))
+    (QName(prefixOption, localPart), Nil, minimizeEmpty, nodeBufferStar(child))
   }
 
-  private def elem: PartialFunction[List[Tree], (QName, List[(QName, Tree)], Boolean, List[Tree])] = {
+  private def elem: PartialFunction[List[
+    Tree
+  ], (QName, List[(QName, Tree)], Boolean, List[Tree])] = {
     case q"var $$md: _root_.scala.xml.MetaData = _root_.scala.xml.Null" +:
-          (attributes :+
-          q"""
+        (attributes :+
+        q"""
               new _root_.scala.xml.Elem(
                 ${Prefix(prefixOption)},
                 ${Literal(Constant(localPart: String))},
@@ -94,22 +97,44 @@ trait XmlExtractor {
                 ..$child
               )
             """) =>
-      (QName(prefixOption, localPart), attributes.map {
-        case q"""$$md = new _root_.scala.xml.UnprefixedAttribute(${Literal(Constant(key: String))}, $value, $$md)""" =>
-          UnprefixedName(key) -> value
-        case q"""$$md = new _root_.scala.xml.PrefixedAttribute(${Literal(Constant(pre: String))}, ${Literal(
-              Constant(key: String))}, $value, $$md)""" =>
-          PrefixedName(pre, key) -> value
-      }, minimizeEmpty, nodeBufferStar(child))
-    case Seq(this.elementWithoutAttributes(tagName, attributes, minimizeEmpty, children)) =>
+      (
+        QName(prefixOption, localPart),
+        attributes.map {
+          case q"""$$md = new _root_.scala.xml.UnprefixedAttribute(${Literal(
+                  Constant(key: String)
+                )}, $value, $$md)""" =>
+            UnprefixedName(key) -> value
+          case q"""$$md = new _root_.scala.xml.PrefixedAttribute(${Literal(
+                  Constant(pre: String)
+                )}, ${Literal(Constant(key: String))}, $value, $$md)""" =>
+            PrefixedName(pre, key) -> value
+        },
+        minimizeEmpty,
+        nodeBufferStar(child)
+      )
+    case Seq(
+          this.elementWithoutAttributes(
+            tagName,
+            attributes,
+            minimizeEmpty,
+            children
+          )
+        ) =>
       (tagName, attributes, minimizeEmpty, children)
   }
 
   private val Elem = elem
 
-  private def element
-    : PartialFunction[Tree,
-                      (QName, List[(Option[String] /*prefix*/, Tree)], List[(QName, Tree)], Boolean, List[Tree])] = {
+  private def element: PartialFunction[
+    Tree,
+    (
+        QName,
+        List[(Option[String] /*prefix*/, Tree)],
+        List[(QName, Tree)],
+        Boolean,
+        List[Tree]
+    )
+  ] = {
     case q"""{
         var $$tmpscope: _root_.scala.xml.NamespaceBinding = $outerScope;
         ..$xmlnses;
@@ -133,7 +158,12 @@ trait XmlExtractor {
       (tagName, Nil, attributes, minimizeEmpty, children)
     case q"{..${Elem(tagName, attributes, minimizeEmpty, children)}}" =>
       (tagName, Nil, attributes, minimizeEmpty, children)
-    case this.elementWithoutAttributes(tagName, attributes, minimizeEmpty, children) =>
+    case this.elementWithoutAttributes(
+          tagName,
+          attributes,
+          minimizeEmpty,
+          children
+        ) =>
       (tagName, Nil, attributes, minimizeEmpty, children)
   }
 
@@ -143,13 +173,16 @@ trait XmlExtractor {
     case text @ (Text(_) | EntityRef(_))                     => Seq(text)
     case q"null"                                             => Nil
     case NodeBuffer(texts @ ((Text(_) | EntityRef(_)) +: _)) => texts
-    case Literal(Constant(data: String))                     => Seq(q"new _root_.scala.xml.Text($data)")
+    case Literal(Constant(data: String)) =>
+      Seq(q"new _root_.scala.xml.Text($data)")
   }
 
   protected final val TextUris = textUris
 
   private def entityRef: PartialFunction[Tree, String] = {
-    case q"""new _root_.scala.xml.EntityRef(${Literal(Constant(entityName: String))})""" =>
+    case q"""new _root_.scala.xml.EntityRef(${Literal(
+            Constant(entityName: String)
+          )})""" =>
       entityName
   }
 
@@ -179,31 +212,31 @@ trait XmlExtractor {
   protected final val TextAttributes = textAttributes
 
   private def comment: PartialFunction[Tree, String] = {
-    case q"""new _root_.scala.xml.Comment(${Literal(Constant(commentText: String))})""" =>
+    case q"""new _root_.scala.xml.Comment(${Literal(
+            Constant(commentText: String)
+          )})""" =>
       commentText
   }
 
   protected final val Comment = comment
 
-  private def procInstr: PartialFunction[Tree, (String, String)] = {
-    case q"""
+  private def procInstr: PartialFunction[Tree, (String, String)] = { case q"""
       new _root_.scala.xml.ProcInstr(
         ${Literal(Constant(target: String))},
         ${Literal(Constant(proctext: String))}
       )
     """ =>
-      (target, proctext)
+    (target, proctext)
   }
 
   protected final val ProcInstr = procInstr
 
-  private def pcData: PartialFunction[Tree, String] = {
-    case q"""
+  private def pcData: PartialFunction[Tree, String] = { case q"""
       new _root_.scala.xml.PCData(
         ${Literal(Constant(data: String))}
       )
     """ =>
-      data
+    data
   }
 
   protected final val PCData = pcData
@@ -245,7 +278,11 @@ object XmlExtractor {
   } yield reference -> character).toMap
 
   private val HtmlEntityRefMap = (for {
-    entityArray <- Seq(BASIC_ESCAPE, ISO8859_1_ESCAPE, HTML40_EXTENDED_ESCAPE).view
+    entityArray <- Seq(
+      BASIC_ESCAPE,
+      ISO8859_1_ESCAPE,
+      HTML40_EXTENDED_ESCAPE
+    ).view
     Array(character, EntityRefRegex(reference)) <- entityArray.view
   } yield reference -> character).toMap
 
